@@ -3,22 +3,28 @@
 import { useState, useEffect } from "react";
 import { collection, doc, getDoc, getDocs, setDoc, deleteDoc } from "firebase/firestore";
 import { firestore } from "@/firebase";
-import { Box, Modal, Stack, Typography, TextField, Button } from "@mui/material";
+import { Box, Modal, Stack, Typography, TextField, Button, Input } from "@mui/material";
 
 export default function Home() {
   const [inventory, setInventory] = useState([]);
   const [open, setOpen] = useState(false);
   const [itemName, setItemName] = useState("");
+  let itemNum = null;
 
-  const addItem = async (item) => {
+  const addItem = async (item, numberOf) => {
     const docRef = doc(firestore, 'inventory', item);
     const docSnap = await getDoc(docRef);
 
+    if (numberOf === null) 
+    {
+      numberOf = 1;
+    }
+
     if (docSnap.exists()) {
       const { quantity } = docSnap.data();
-      await setDoc(docRef, { quantity: quantity + 1 });
+      await setDoc(docRef, { quantity: quantity + numberOf });
     } else {
-      await setDoc(docRef, { quantity: 1 });
+      await setDoc(docRef, { quantity: numberOf });
     }
     await updateInventory();
   }
@@ -100,7 +106,7 @@ export default function Home() {
             <Button
               variant="outlined"
               onClick={() => {
-                addItem(itemName)
+                addItem(itemName, null)
                 setItemName("")
                 handleClose()
               }}>
@@ -176,10 +182,16 @@ export default function Home() {
                 </Button>
                 <Button
                   variant="contained"
-                  onClick={() => addItem(id)}
+                  onClick={() => addItem(id, itemNum)}
                 >
                   Add
                 </Button>
+
+                <Input
+                  type="number"
+                  placeholder="Quantity">
+                  onChange={(e) => {itemNum = e.target.value}}
+                </Input>
               </Stack>
             </Box>
           ))}
