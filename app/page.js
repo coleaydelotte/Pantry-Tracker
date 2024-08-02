@@ -9,15 +9,18 @@ export default function Home() {
   const [inventory, setInventory] = useState([]);
   const [open, setOpen] = useState(false);
   const [itemName, setItemName] = useState("");
-  let itemNum = null;
+  const [itemNum, setItemNum] = useState(null);
 
   const addItem = async (item, numberOf) => {
     const docRef = doc(firestore, 'inventory', item);
     const docSnap = await getDoc(docRef);
 
-    if (numberOf === null) 
-    {
+    if (numberOf === null) {
       numberOf = 1;
+    }
+
+    if (numberOf === "e") {
+      return;
     }
 
     if (docSnap.exists()) {
@@ -27,7 +30,7 @@ export default function Home() {
       await setDoc(docRef, { quantity: numberOf });
     }
     await updateInventory();
-  }
+  };
 
   const removeItem = async (item) => {
     const docRef = doc(firestore, 'inventory', item);
@@ -42,7 +45,7 @@ export default function Home() {
       }
       await updateInventory();
     }
-  }
+  };
 
   const updateInventory = async () => {
     try {
@@ -76,7 +79,7 @@ export default function Home() {
       alignItems={"center"}
       gap={2}
       sx={{
-        background: "#000000"
+        background: "#ffffff",
       }}
     >
       <Modal open={open} onClose={handleClose}>
@@ -85,15 +88,16 @@ export default function Home() {
           top={"50%"}
           left={"50%"}
           width={400}
-          bgcolor={"white"}
-          border={"2px solid #ffffff"}
+          bgcolor={"#f4f4f4"}
+          border={"2px solid #999"}
           boxShadow={24}
           padding={4}
           display={"flex"}
           flexDirection={"column"}
           gap={3}
           sx={{
-            transform: "translate(-50%, -50%)"
+            transform: "translate(-50%, -50%)",
+            borderRadius: 4
           }}
         >
           <Typography variant="h6">Add Item</Typography>
@@ -124,12 +128,16 @@ export default function Home() {
         Add New Item
       </Button>
       <Box
+        width={"800px"}
         border="2px solid #999"
+        bgcolor={"#f4f4f4"}
+        sx={{ borderRadius: 4, padding: 2 }}
       >
         <Box
-          width={"800px"}
+          width={"100%"}
           height={"100px"}
-          bgcolor = {"#000000"}
+          bgcolor={"#f4f4f4"}
+          sx={{ borderRadius: '4px 4px 0 0', padding: 1 }}
         >
           <Typography 
             variant="h2"
@@ -137,16 +145,17 @@ export default function Home() {
             justifyContent={"center"}
             verticalAlign={"middle"}
             display={"flex"}
-            color={"#ffffff"}
+            color={"#000000"}
           >
             Inventory
           </Typography>
         </Box>
         <Stack
-          width={"800px"}
+          width={"100%"}
           height={"300px"}
           spacing={2}
           overflow={"auto"}
+          sx={{ borderRadius: '0 0 4px 4px' }}
         >
           {inventory.map(({id, quantity}) => (
             <Box
@@ -158,6 +167,7 @@ export default function Home() {
               justifyContent={"space-between"}
               bgcolor={"#ffffff"}
               padding={5}
+              sx={{ borderRadius: 4, border: '1px solid #999' }}
             >
               <Typography
                 variant="h3"
@@ -189,9 +199,10 @@ export default function Home() {
 
                 <Input
                   type="number"
-                  placeholder="Quantity">
-                  onChange={(e) => {itemNum = e.target.value}}
-                </Input>
+                  placeholder="Quantity"
+                  sx={{ width: 80 }}
+                  onChange={(e) => setItemNum(parseInt(e.target.value))}
+                />
               </Stack>
             </Box>
           ))}
