@@ -23,7 +23,7 @@ export default function Home() {
   const [lowInventory, setLowInventory] = useState([]);
   const [open, setOpen] = useState(false);
   const [itemName, setItemName] = useState("");
-  const [itemNum, setItemNum] = useState(null);
+  const [itemNum, setItemNum] = useState(0);
 
   const handleOpen = () => setOpen(true);
   const handleClose = () => setOpen(false);
@@ -32,7 +32,7 @@ export default function Home() {
     const docRef = doc(firestore, 'inventory', item);
     const docSnap = await getDoc(docRef);
 
-    if (numberOf === null) {
+    if (!numberOf) {
       numberOf = 1;
     }
 
@@ -44,19 +44,26 @@ export default function Home() {
     }
   };
 
-  const removeItem = async (item) => {
+  const removeItem = async (item, numberOf) => {
     const docRef = doc(firestore, 'inventory', item);
     const docSnap = await getDoc(docRef);
-
+  
+    if (!numberOf) {
+      numberOf = 1;
+    }
+  
     if (docSnap.exists()) {
       const { quantity } = docSnap.data();
-      if (quantity === 1) {
+      const newQuantity = quantity - numberOf;
+  
+      if (newQuantity <= 0) {
         await deleteDoc(docRef);
       } else {
-        await setDoc(docRef, { quantity: quantity - 1 });
+        await setDoc(docRef, { quantity: newQuantity });
       }
     }
   };
+  
 
   useEffect(() => {
     const inventoryCollection = collection(firestore, 'inventory');
@@ -85,7 +92,7 @@ export default function Home() {
       alignItems={"center"}
       gap={2}
       sx={{
-        background: "#ffffff",
+        background: "#3b3b3b",
       }}
     >
       {/* Main Content */}
@@ -94,7 +101,7 @@ export default function Home() {
         display={"flex"}
         flexDirection={"column"}
         justifyContent={"center"}
-        alignItems={"center"}
+        alignItems={"left"}
         gap={2}
       >
         {/* Header */}
@@ -105,18 +112,25 @@ export default function Home() {
           justifyContent={"space-between"}
           alignItems={"center"}
           padding={"0 20px"}
-          bgcolor={"#f4f4f4"}
+          bgcolor={"#141414"}
           position={"fixed"}
           top={0}
         >
           <Typography
             variant="h5"
+            color={"#f9f9f9"}
             fontStyle={{
               fontFamily: "Arial, sans-serif"
             }}
           >
             Inventory Management
           </Typography>
+          <Button
+            variant="contained"
+            onClick={handleOpen}
+          >
+            Add New Item
+          </Button>
           <Box>
             <Typography
               variant="h2"
@@ -167,36 +181,16 @@ export default function Home() {
             </Stack>
           </Box>
         </Modal>
-
-        <Button variant="contained" onClick={handleOpen}>
-          Add New Item
-        </Button>
-
         <Box
           width={"800px"}
           border="4px solid #ADD8E6"
           bgcolor={"#f4f4f4"}
+          height={"80vh"}
           sx={{ borderRadius: 4, padding: 2 }}
         >
-          <Box
-            width={"100%"}
-            height={"100px"}
-            bgcolor={"#e0e0e0"}
-            sx={{ borderRadius: "4px 4px 0 0", padding: 1 }}
-          >
-            <Typography
-              variant="h2"
-              alignItems={"center"}
-              justifyContent={"center"}
-              verticalAlign={"middle"}
-              display={"flex"}
-              color={"#000000"}>
-              Inventory
-            </Typography>
-          </Box>
           <Stack
             width={"100%"}
-            height={"300px"}
+            height={"80vh"}
             spacing={2}
             overflow={"auto"}
             sx={{
@@ -207,26 +201,27 @@ export default function Home() {
               <Box
                 key={id}
                 width={"100%"}
-                minHeight={"150px"}
+                height={"100px"}
                 display={"flex"}
                 alignItems={"center"}
                 justifyContent={"space-between"}
                 bgcolor={"#ffffff"}
-                padding={5}
+                padding={3}
                 sx={{
                   borderRadius: 4,
-                  border: "4px solid #ADD8E6" 
+                  border: "4px solid #000000" 
                 }}
               >
                 <Typography
-                  variant="h3"
+                  variant="h5"
                   color={"#333"}
                   textAlign={"center"}
+                  width={"25%"}
                 >
                   {id.charAt(0).toUpperCase() + id.slice(1)}
                 </Typography>
                 <Typography
-                  variant="h3"
+                  variant="h5"
                   color={"#333"}
                   textAlign={"center"}
                 >
@@ -235,24 +230,35 @@ export default function Home() {
                 <Stack
                   direction={"row"}
                   spacing={2}
+                  height={"100%"}
                 >
                   <Button
                     variant="contained"
-                    onClick={() => removeItem(id)}
+                    onClick={() => removeItem(id, itemNum)}
+                    color="error"
                   >
-                    Remove
+                    <Typography
+                      variant="h6"
+                    >
+                      Remove
+                    </Typography>
                   </Button>
                   <Button
                     variant="contained"
                     onClick={() => addItem(id, itemNum)}
+                    color="success"
                   >
-                    Add
+                    <Typography
+                      variant="h6"
+                    >
+                      Add
+                    </Typography>
                   </Button>
                   <Input
                     type="number"
-                    placeholder="Quantity"
-                    sx={{ width: 80 }}
-                    onChange={(e) => setItemNum(parseInt(e.target.value))}
+                    placeholder="#"
+                    sx={{ width: 60 }}
+                    onChange={(e) => setItemNum(parseInt(e.target.value) || 0)}
                   />
                 </Stack>
               </Box>
