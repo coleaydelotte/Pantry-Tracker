@@ -1,10 +1,13 @@
-'use client'
+'use client';
 
 import { useState, useEffect } from "react";
 import { collection, doc, getDoc, getDocs, setDoc, deleteDoc, onSnapshot } from "firebase/firestore";
 import { firestore } from "@/firebase";
 import { Box, Modal, Stack, Typography, TextField, Button, Input } from "@mui/material";
-import Link from 'next/link';
+import { ArrowDropUp, ArrowDropDown } from '@mui/icons-material';
+import { styled } from '@mui/system';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 async function checkLowInventory(setLowInventory) {
   const inventoryCollection = collection(firestore, 'inventory');
@@ -18,15 +21,40 @@ async function checkLowInventory(setLowInventory) {
   setLowInventory(lowInventoryItems);
 }
 
+const ScrollBox = styled(Box)(({ isExpanded }) => ({
+  overflowY: 'auto',
+  transition: 'max-height 0.5s ease',
+  maxHeight: isExpanded ? 'calc(100vh - 80px - 60px)' : 'calc(100% - 60px)', // Adjust for height of ToggleButton
+  position: 'relative',
+  marginTop: '40px'
+}));
+
+
+const ToggleButton = styled(Box)({
+  display: 'flex',
+  justifyContent: 'center',
+  alignItems: 'center',
+  backgroundColor: '#e0e0e0',
+  padding: '8px',
+  borderRadius: '2px',
+  cursor: 'pointer',
+  position: 'absolute',
+  top: 0,
+  left: 0,
+  width: '100%',
+});
+
 export default function Home() {
   const [inventory, setInventory] = useState([]);
   const [lowInventory, setLowInventory] = useState([]);
   const [open, setOpen] = useState(false);
   const [itemName, setItemName] = useState("");
   const [itemNum, setItemNum] = useState(0);
+  const [isExpanded, setIsExpanded] = useState(false);
 
   const handleOpen = () => setOpen(true);
   const handleClose = () => setOpen(false);
+  const toggleExpand = () => setIsExpanded(!isExpanded);
 
   const addItem = async (item, numberOf) => {
     const docRef = doc(firestore, 'inventory', item);
@@ -54,6 +82,10 @@ export default function Home() {
   
     if (docSnap.exists()) {
       const { quantity } = docSnap.data();
+      if (quantity < numberOf) {
+        toast.error("Not enough inventory");
+        return;
+      }
       const newQuantity = quantity - numberOf;
   
       if (newQuantity <= 0) {
@@ -63,7 +95,6 @@ export default function Home() {
       }
     }
   };
-  
 
   useEffect(() => {
     const inventoryCollection = collection(firestore, 'inventory');
@@ -269,44 +300,60 @@ export default function Home() {
       {/* Low Inventory List */}
       <Box
         width={"300px"}
-        height={"100vh"}
         bgcolor={"#f4f4f4"}
         padding={2}
-        position={"fixed"}
+        position={"fixed"} // Ensure it's fixed to the viewport
         right={0}
-        top={0}
-        marginTop={80}
-        overflow={"auto"}
+        top={"80px"} // Position it right below the header
+        overflow={"hidden"}
+        height={isExpanded ? 'calc(100vh - 80px)' : '240px'}
         sx={{
-          borderLeft: "4px solid #ADD8E6", 
-          borderRadius: 4 
+          borderLeft: "4px solid #ADD8E6",
+          borderRadius: 4,
         }}
       >
-        <Typography
-          variant="h6"
-          fontWeight={"bold"}
-          marginBottom={2}
+        <ToggleButton
+          onClick={toggleExpand}
+          sx={{
+            position: 'absolute', // Position the button absolutely within the Box
+            top: 0,
+            right: 0,
+            backgroundColor: '#e0e0e0',
+            borderRadius: '4px',
+          }}
         >
-          Low Inventory
-        </Typography>
-        {lowInventory.length === 0 ? (
-          <Typography>No items are low in stock.</Typography>
-        ) : (
-          lowInventory.map(({ id }) => (
-            <Box
-              key={id}
-              marginBottom={2}
-              padding={2}
-              bgcolor={"#ffffff"}
-              border={"2px solid #999"}
-              borderRadius={2}
-              sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}
-            >
-              <Typography>{id.charAt(0).toUpperCase() + id.slice(1)}</Typography>
-              <Typography color={"#f00"}>Low</Typography>
-            </Box>
-          ))
-        )}
+          {isExpanded ? <ArrowDropUp /> : <ArrowDropDown />}
+        </ToggleButton>
+        <ScrollBox
+          isExpanded={isExpanded}
+        >
+          <Typography
+            variant="h6"
+            fontWeight={"bold"}
+            marginBottom={2}
+          >
+            Low Inventory
+          </Typography>
+          {lowInventory.length === 0 ? (
+            <Typography>No items are low in stock.</Typography>
+          ) : (
+            lowInventory.map(({ id }) => (
+              <Box
+                key={id}
+                marginBottom={2}
+                padding={2}
+                bgcolor={"#ffffff"}
+                border={"2px solid #999"}
+                borderRadius={2}
+                sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}
+              >
+                <Typography>{id.charAt(0).toUpperCase() + id.slice(1)}</Typography>
+                <Typography color={"#f00"}>Low</Typography>
+              </Box>
+            ))
+          )}
+        </ScrollBox>
+        <ToastContainer />
       </Box>
     </Box>
   );
