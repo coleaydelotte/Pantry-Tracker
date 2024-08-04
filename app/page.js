@@ -3,11 +3,12 @@
 import { useState, useEffect } from "react";
 import { collection, doc, getDoc, getDocs, setDoc, deleteDoc, onSnapshot } from "firebase/firestore";
 import { firestore } from "@/firebase";
-import { Box, Modal, Stack, Typography, TextField, Button, Input } from "@mui/material";
-import { ArrowDropUp, ArrowDropDown } from '@mui/icons-material';
+import { Box, Modal, Stack, Typography, TextField, Button, Input, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, IconButton } from "@mui/material";
+import { ArrowDropUp, ArrowDropDown, Search, Sort, Download, Upload } from '@mui/icons-material';
 import { styled } from '@mui/system';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import Papa from 'papaparse';
 
 async function checkLowInventory(setLowInventory) {
   const inventoryCollection = collection(firestore, 'inventory');
@@ -21,14 +22,13 @@ async function checkLowInventory(setLowInventory) {
   setLowInventory(lowInventoryItems);
 }
 
-const ScrollBox = styled(Box)(({ isExpanded }) => ({
+const ScrollBox = styled(Box)(({ theme, isExpanded }) => ({
   overflowY: 'auto',
   transition: 'max-height 0.5s ease',
-  maxHeight: isExpanded ? 'calc(100vh - 80px - 60px)' : 'calc(100% - 60px)', // Adjust for height of ToggleButton
+  maxHeight: isExpanded ? 'calc(100vh - 80px - 60px)' : 'calc(100% - 60px)',
   position: 'relative',
-  marginTop: '40px'
+  marginTop: '40px',
 }));
-
 
 const ToggleButton = styled(Box)({
   display: 'flex',
@@ -51,6 +51,9 @@ export default function Home() {
   const [itemName, setItemName] = useState("");
   const [itemNum, setItemNum] = useState(0);
   const [isExpanded, setIsExpanded] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sortOrder, setSortOrder] = useState("asc");
+  const [sortBy, setSortBy] = useState("id");
 
   const handleOpen = () => setOpen(true);
   const handleClose = () => setOpen(false);
@@ -113,6 +116,68 @@ export default function Home() {
     return () => unsubscribe();
   }, []);
 
+  useEffect(() => {
+    checkLowInventory(setLowInventory);
+  }, []);
+
+  const filteredInventory = inventory.filter(({ id }) =>
+    id.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const sortedInventory = [...filteredInventory].sort((a, b) => {
+    if (sortBy === "quantity") {
+      return sortOrder === "asc" ? a.quantity - b.quantity : b.quantity - a.quantity;
+    } else {
+      return sortOrder === "asc" ? a.id.localeCompare(b.id) : b.id.localeCompare(a.id);
+    }
+  });
+  
+  const handleSortChange = (sortBy) => {
+    setSortOrder(prevSortOrder => prevSortOrder === "asc" ? "desc" : "asc");
+    setSortBy(sortBy);
+  };
+
+  const exportToCSV = () => {
+    const csv = Papa.unparse(inventory);
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = "inventory.csv";
+    link.click();
+  };
+
+  const importFromCSV = (event) => {
+    const file = event.target.files[0];
+    if (file) {
+      Papa.parse(file, {
+        complete: async (result) => {
+          const data = result.data;
+  
+          for (let i = 0; i < data.length; i++) {
+            const item = data[i];
+            if (!item.id) {
+              console.error("Missing 'id' in row: ", item);
+              continue;
+            }
+
+            const docRef = doc(firestore, 'inventory', item.id);
+  
+            try {
+              await setDoc(docRef, item);
+            } catch (error) {
+              console.error("Error setting document: ", error);
+            }
+          }
+        },
+        header: true,
+        skipEmptyLines: true,
+        error: (error) => {
+          console.error("Error parsing CSV: ", error);
+        }
+      });
+    }
+  };
+
   return (
     <Box
       width={"100vw"}
@@ -132,7 +197,7 @@ export default function Home() {
         display={"flex"}
         flexDirection={"column"}
         justifyContent={"center"}
-        alignItems={"left"}
+        alignItems={"center"}
         gap={2}
       >
         {/* Header */}
@@ -156,24 +221,66 @@ export default function Home() {
           >
             Inventory Management
           </Typography>
-          <Button
-            variant="contained"
-            onClick={handleOpen}
+          <Box
+            display={"flex"}
+            justifyContent={"center"}
+            alignItems={"center"}
+            gap={2}
           >
-            Add New Item
-          </Button>
+            <Button
+              variant="contained"
+              onClick={handleOpen}
+              sx={{
+                transform: "translate(-50%, 0%)"
+              }}
+            >
+              Add New Item
+            </Button>
+            <Stack
+              direction={"row"}
+              spacing={2}
+              justifyContent={"center"}
+              alignItems={"center"}
+            >
+            <input
+              accept=".csv"
+              style={{ display: 'none' }}
+              id="raised-button-file"
+              type="file"
+              onChange={importFromCSV}
+            />
+            <label htmlFor="raised-button-file">
+              <Button
+                variant="contained"
+                component="span"
+                startIcon={<Upload />}
+              >
+                Import
+              </Button>
+            </label>
+            <Button
+              variant="contained"
+              onClick={exportToCSV}
+              startIcon={<Download />}
+            >
+              Export
+            </Button>
+            </Stack>
+          </Box>
           <Box>
             <Typography
               variant="h2"
+              color={"#ffffff"}
+              fontSize={64}
               fontStyle={{
                 fontFamily: "Arial, sans-serif"
               }}
             >
-                C^2
+              C^2
             </Typography>
           </Box>
         </Box>
-
+  
         <Modal open={open} onClose={handleClose}>
           <Box
             position={"absolute"}
@@ -216,84 +323,89 @@ export default function Home() {
           width={"800px"}
           border="4px solid #ADD8E6"
           bgcolor={"#f4f4f4"}
-          height={"80vh"}
+          height={"90vh"}
+          marginTop={"80px"}
           sx={{ borderRadius: 4, padding: 2 }}
         >
           <Stack
             width={"100%"}
-            height={"80vh"}
+            height={"85vh"}
             spacing={2}
             overflow={"auto"}
             sx={{
               borderRadius: "0 0 4px 4px"
             }}
           >
-            {inventory.map(({ id, quantity }) => (
-              <Box
-                key={id}
-                width={"100%"}
-                height={"100px"}
-                display={"flex"}
-                alignItems={"center"}
-                justifyContent={"space-between"}
-                bgcolor={"#ffffff"}
-                padding={3}
-                sx={{
-                  borderRadius: 4,
-                  border: "4px solid #000000" 
+            <Box padding={2} marginTop={2}>
+              <TextField
+                fullWidth
+                variant="outlined"
+                placeholder="Search items..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                InputProps={{
+                  endAdornment: <Search />,
                 }}
-              >
-                <Typography
-                  variant="h5"
-                  color={"#333"}
-                  textAlign={"center"}
-                  width={"25%"}
-                >
-                  {id.charAt(0).toUpperCase() + id.slice(1)}
-                </Typography>
-                <Typography
-                  variant="h5"
-                  color={"#333"}
-                  textAlign={"center"}
-                >
-                  {quantity}
-                </Typography>
-                <Stack
-                  direction={"row"}
-                  spacing={2}
-                  height={"100%"}
-                >
-                  <Button
-                    variant="contained"
-                    onClick={() => removeItem(id, itemNum)}
-                    color="error"
-                  >
-                    <Typography
-                      variant="h6"
-                    >
-                      Remove
-                    </Typography>
-                  </Button>
-                  <Button
-                    variant="contained"
-                    onClick={() => addItem(id, itemNum)}
-                    color="success"
-                  >
-                    <Typography
-                      variant="h6"
-                    >
-                      Add
-                    </Typography>
-                  </Button>
-                  <Input
-                    type="number"
-                    placeholder="#"
-                    sx={{ width: 60 }}
-                    onChange={(e) => setItemNum(parseInt(e.target.value) || 0)}
-                  />
-                </Stack>
-              </Box>
-            ))}
+              />
+            </Box>
+            <TableContainer component={Paper}>
+              <Table>
+                <TableHead>
+                  <TableRow>
+                    <TableCell>
+                      <Stack direction="row" alignItems="center">
+                        Item Name
+                        <IconButton onClick={() => handleSortChange("id")}>
+                          <Sort />
+                        </IconButton>
+                      </Stack>
+                    </TableCell>
+                    <TableCell align="right">
+                      <Stack direction="row" alignItems="center">
+                        Quantity
+                        <IconButton onClick={() => handleSortChange("quantity")}>
+                          <Sort />
+                        </IconButton>
+                      </Stack>
+                    </TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {sortedInventory.map(({ id, quantity }) => (
+                    <TableRow key={id}>
+                      <TableCell component="th" scope="row">
+                        {id.charAt(0).toUpperCase() + id.slice(1)}
+                      </TableCell>
+                      <TableCell align="right">{quantity}</TableCell>
+                      <TableCell align="right">
+                        <Stack direction={"row"} spacing={1}>
+                          <Button
+                            variant="contained"
+                            onClick={() => removeItem(id, itemNum)}
+                            color="error"
+                          >
+                            Remove
+                          </Button>
+                          <Button
+                            variant="contained"
+                            onClick={() => addItem(id, itemNum)}
+                            color="success"
+                          >
+                            Add
+                          </Button>
+                          <Input
+                            type="number"
+                            placeholder="#"
+                            sx={{ width: 60 }}
+                            onChange={(e) => setItemNum(parseInt(e.target.value) || 0)}
+                          />
+                        </Stack>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
           </Stack>
         </Box>
       </Box>
@@ -356,5 +468,5 @@ export default function Home() {
         <ToastContainer />
       </Box>
     </Box>
-  );
+  );  
 }
