@@ -188,7 +188,7 @@ export default function Home() {
       alignItems={"center"}
       gap={2}
       sx={{
-        background: "#3b3b3b",
+        background: "#5E819D",
       }}
     >
       {/* Main Content */}
@@ -208,7 +208,7 @@ export default function Home() {
           justifyContent={"space-between"}
           alignItems={"center"}
           padding={"0 20px"}
-          bgcolor={"#141414"}
+          bgcolor={"#222222"}
           position={"fixed"}
           top={0}
         >
